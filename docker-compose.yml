@@ -1,0 +1,63 @@
+version: '3'
+services:
+  vehicle-postgres:
+    image: postgres:latest
+    container_name: vehicle-db-pgsql
+    environment: 
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=vehicleadmin
+      - POSTGRES_DB=vehicle-info
+    ports:
+      - '5432:5432'
+    volumes:
+      - database_postgres:/var/lib/postgresql/data
+    networks:
+      - vehicle
+
+  vehicle-data-svc:
+    image: vehicle-data-svc:v1.0.0
+    container_name: vehicle-data-svc
+    ports:
+      - 8080:8080
+    restart: on-failure
+    volumes:
+      - api:/usr/src/app/
+    depends_on:
+      - vehicle-postgres
+    networks:
+      - vehicle
+
+  challan-data-svc:
+    depends_on:
+      - challan-dynamodb
+    image: challan-data-svc:v1.0.0
+    container_name: challan-data-svc
+    ports:
+      - "8081:8081"
+    environment:
+      AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
+      AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
+    volumes:
+      - api:/usr/src/challan-app/
+    networks:
+      - vehicle
+  
+  challan-dynamodb:
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+    networks:
+      - vehicle
+
+volumes:
+  api:
+  database_postgres:
+
+networks:
+  vehicle:
+    driver: "bridge"

@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+option go_package = "github.com/thegoodparticle/vehicle-data-svc/vehicledata";
+
+package vehicledata;
+
+import "google/protobuf/timestamp.proto";
+
+service VehicleData {
+    rpc GetVehicleDataByRegistration(RegistrationRequest) returns (VehicleInfo) {}
+    rpc GetVehicleDataByChassisEngine(ChassisEngineNumberRequest) returns (VehicleInfo) {}
+    rpc GetDriverDataByLicenseNumber(LicenseRequest) returns (DriverInfo) {}
+}
+
+message RegistrationRequest {
+    string RegistrationNumber = 1;
+}
+
+message ChassisEngineNumberRequest {
+    string ChassisNumber = 1;
+    string EngineNumber = 2;
+}
+
+message VehicleInfo {
+    string RegistrationNumber = 1;
+    string VehicleModel = 2;
+    string Company = 3;
+    google.protobuf.Timestamp RegistrationDate = 4; 
+    string OwnerLicenseNumber = 5;
+}
+
+message LicenseRequest {
+    string LicenseNumber = 1;
+}
+
+message DriverInfo {
+    string LicenseNumber = 1;
+    string DriverName = 2;
+    google.protobuf.Timestamp LicenseDate = 3;
+}
