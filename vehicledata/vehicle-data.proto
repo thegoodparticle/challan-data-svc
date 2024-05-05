@@ -9,7 +9,7 @@ import "google/protobuf/timestamp.proto";
 service VehicleData {
     rpc GetVehicleDataByRegistration(RegistrationRequest) returns (VehicleInfo) {}
     rpc GetVehicleDataByChassisEngine(ChassisEngineNumberRequest) returns (VehicleInfo) {}
-    rpc GetDriverDataByLicenseNumber(LicenseRequest) returns (DriverInfo) {}
+    rpc GetOwnerDataByID(OwnerRequest) returns (OwnerInfo) {}
 }
 
 message RegistrationRequest {
@@ -26,15 +26,18 @@ message VehicleInfo {
     string VehicleModel = 2;
     string Company = 3;
     google.protobuf.Timestamp RegistrationDate = 4; 
-    string OwnerLicenseNumber = 5;
+    google.protobuf.Timestamp RegistrationExpiryDate = 5; 
+    string OwnerID = 6;
 }
 
-message LicenseRequest {
-    string LicenseNumber = 1;
+message OwnerRequest {
+    string OwnerID = 1;
 }
 
-message DriverInfo {
-    string LicenseNumber = 1;
-    string DriverName = 2;
-    google.protobuf.Timestamp LicenseDate = 3;
+message OwnerInfo {
+    string OwnerID = 1;
+    string OwnerFirstName = 2;
+    string OwnerLastName = 3;
+    string MobileNumber = 4;
+    string Address = 5;
 }

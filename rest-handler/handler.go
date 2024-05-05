@@ -6,48 +6,40 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/thegoodparticle/challan-data-svc/controller"
 	grpcclient "github.com/thegoodparticle/challan-data-svc/grpc-client"
-	"github.com/thegoodparticle/challan-data-svc/models"
-	"github.com/thegoodparticle/challan-data-svc/store"
-	HttpStatus "github.com/thegoodparticle/challan-data-svc/utils"
+	"github.com/thegoodparticle/challan-data-svc/internal/models"
+	"github.com/thegoodparticle/challan-data-svc/internal/store"
+	HttpStatus "github.com/thegoodparticle/challan-data-svc/internal/utils"
 )
 
 type Handler struct {
-	Controller controller.Interface
+	controller *store.Store
 	grpcSvc    *grpcclient.GRPCClient
 }
 
-func NewHandler(repository store.Interface, grpcClient *grpcclient.GRPCClient) *Handler {
+func NewHandler(controller *store.Store, grpcClient *grpcclient.GRPCClient) *Handler {
 	return &Handler{
-		Controller: controller.NewController(repository),
+		controller: controller,
 		grpcSvc:    grpcClient,
 	}
 }
 
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	if chi.URLParam(r, "RegID") != "" {
-		h.getOne(w, r)
-	} else {
-		h.getAll(w, r)
-	}
-}
-
-func (h *Handler) getOne(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetChallanResponseForRegistrationID(w http.ResponseWriter, r *http.Request) {
 	ID := chi.URLParam(r, "RegID")
+	if ID == "" {
+		HttpStatus.StatusBadRequest(w, r, errors.New("vehicle registration number not provided"))
+		return
+	}
 
-	challanInfo, err := h.Controller.ListOne(ID)
+	challanInfo, err := h.controller.ListAllChallansForVehicleNumber(&models.ChallanInfo{VehicleRegNumber: ID})
 	if err != nil {
 		HttpStatus.StatusInternalServerError(w, r, err)
 		return
 	}
 
 	response := models.ChallanResponse{
-		VehicleRegNumber: challanInfo.VehicleRegNumber,
-		TotalFine:        challanInfo.TotalFine,
-		Violations:       challanInfo.Violations,
-		CreatedAt:        challanInfo.CreatedAt,
-		UpdatedAt:        challanInfo.UpdatedAt,
+		VehicleRegNumber: ID,
+		ChallanInfo:      challanInfo,
 	}
 
 	vehicleInfo := h.grpcSvc.GetVehicleDetailsByRegistrationNumber(ID)
@@ -55,22 +47,19 @@ func (h *Handler) getOne(w http.ResponseWriter, r *http.Request) {
 		response.VehicleModel = vehicleInfo.VehicleModel
 		response.VehicleCompany = vehicleInfo.Company
 		response.RegistrationDate = vehicleInfo.RegistrationDate.AsTime()
+		response.RegistrationExpiryDate = vehicleInfo.RegistrationExpiryDate.AsTime()
 	}
 
-	driverInfo := h.grpcSvc.GetOwnerDetailsByLicenseNumber(vehicleInfo.OwnerLicenseNumber)
-	if driverInfo != nil {
-		response.LicenseNumber = driverInfo.LicenseNumber
-		response.LicenseOwnerName = driverInfo.DriverName
-		response.LicenseDate = driverInfo.LicenseDate.AsTime()
+	ownerInfo := h.grpcSvc.GetOwnerDetailsByID(vehicleInfo.OwnerID)
+	if ownerInfo != nil {
+		response.OwnerFirstName = ownerInfo.OwnerFirstName
+		response.OwnerLastName = ownerInfo.OwnerLastName
+		response.OwnerMobileNumber = ownerInfo.MobileNumber
+		response.OwnerAddress = ownerInfo.Address
 	}
 
-	HttpStatus.StatusOK(w, r, response)
-}
-
-func (h *Handler) getAll(w http.ResponseWriter, r *http.Request) {
-	response, err := h.Controller.ListAll()
-	if err != nil {
-		HttpStatus.StatusInternalServerError(w, r, err)
+	if response.VehicleModel == "" && response.OwnerFirstName == "" {
+		HttpStatus.StatusNotFound(w, r, errors.New("vehicle details not found"))
 		return
 	}
 
@@ -84,49 +73,13 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ID, err := h.Controller.Create(vehicleViolationsBody)
+	ID, err := h.controller.Create(vehicleViolationsBody)
 	if err != nil {
 		HttpStatus.StatusInternalServerError(w, r, err)
 		return
 	}
 
 	HttpStatus.StatusOK(w, r, map[string]interface{}{"registration_id": ID})
-}
-
-func (h *Handler) Put(w http.ResponseWriter, r *http.Request) {
-	ID := chi.URLParam(r, "RegID")
-
-	vehicleViolationsBody, err := h.getBodyAndValidate(r)
-	if err != nil {
-		HttpStatus.StatusBadRequest(w, r, err)
-		return
-	}
-
-	if err := h.Controller.Update(ID, vehicleViolationsBody); err != nil {
-		HttpStatus.StatusInternalServerError(w, r, err)
-		return
-	}
-
-	HttpStatus.StatusNoContent(w, r)
-}
-
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	ID := chi.URLParam(r, "RegID")
-
-	if err := h.Controller.Remove(ID); err != nil {
-		HttpStatus.StatusInternalServerError(w, r, err)
-		return
-	}
-
-	HttpStatus.StatusNoContent(w, r)
-}
-
-func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	HttpStatus.StatusOK(w, r, "UP")
-}
-
-func (h *Handler) Options(w http.ResponseWriter, r *http.Request) {
-	HttpStatus.StatusNoContent(w, r)
 }
 
 func (h *Handler) getBodyAndValidate(r *http.Request) (*models.ChallanInfo, error) {

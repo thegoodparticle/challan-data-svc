@@ -5,96 +5,78 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	grpcclient "github.com/thegoodparticle/challan-data-svc/grpc-client"
-	"github.com/thegoodparticle/challan-data-svc/migration"
-	"github.com/thegoodparticle/challan-data-svc/routes"
-	"github.com/thegoodparticle/challan-data-svc/store"
+	"github.com/thegoodparticle/challan-data-svc/internal/store"
+	handler "github.com/thegoodparticle/challan-data-svc/rest-handler"
 )
 
 func main() {
+	// load env variables from .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Printf("Error while loadinf env file - %s", err)
 	}
 
-	httpPortNumber := os.Getenv("HTTP_PORT")
-	httpTimeout := os.Getenv("HTTP_TIMEOUT")
+	endpoint := os.Getenv("DYNAMO_ENDPOINT")
+	region := os.Getenv("DYNAMO_REGION")
 
-	connection := GetConnection()
+	// get dynamoDB connection
+	connection := getConnection(endpoint, region)
 	if connection == nil {
 		log.Fatal("could not connect to dynamodb")
 	}
-	repository := store.NewAdapter(connection)
 
 	log.Printf("Waiting service starting.... %+v ", connection)
 
-	errors := Migrate(connection)
-	if len(errors) > 0 {
-		for _, err := range errors {
-			if err != nil {
-				log.Panic("Error on migrate: ", err)
-			}
-		}
+	// setup data store - interface for dynamoDB operations
+	dataStore := store.NewController(connection)
+
+	err = dataStore.Migrate()
+	if err != nil {
+		log.Panic("Error on migrate: ", err)
 	}
 
-	if err := checkTables(connection); err != nil {
-		log.Panic("", err)
+	if err := dataStore.CheckTables(); err != nil {
+		log.Panic("Error on Tables Check", err)
 	}
 
-	repository.LoadDataIntoTables()
+	// load few pre-defined data into DB tables
+	dataStore.LoadDataIntoTables()
 
+	// get grpc server details from env, setup the client
 	grpcServerHost := os.Getenv("GRPC_SERVER_HOST")
 	grpcServerPort := os.Getenv("GRPC_SERVER_PORT")
 	grpcClientObj := grpcclient.New(grpcServerHost, grpcServerPort)
 
+	// extract http port number for rest handlers
+	httpPortNumber := os.Getenv("HTTP_PORT")
+
+	// setup rest api handlers and routes for defining the endpoints
 	port := fmt.Sprintf(":%v", httpPortNumber)
-	timeout, _ := strconv.Atoi(httpTimeout)
-	router := routes.NewRouter(timeout).SetRouters(repository, grpcClientObj)
+
+	h := handler.NewHandler(dataStore, grpcClientObj)
+
+	router := chi.NewRouter()
+
+	router.Route("/challan-info", func(route chi.Router) {
+		route.Get("/{RegID}", h.GetChallanResponseForRegistrationID)
+	})
+
 	log.Print("HTTP Service running on port ", httpPortNumber)
 
 	server := http.ListenAndServe(port, router)
 	log.Fatal(server)
 }
 
-func Migrate(connection *dynamodb.DynamoDB) []error {
-	var errors []error
-
-	callMigrateAndAppendError(&errors, connection, migration.NewMigration())
-
-	return errors
-}
-
-func callMigrateAndAppendError(errors *[]error, connection *dynamodb.DynamoDB, migration *migration.Migration) {
-	err := migration.Migrate(connection)
-	if err != nil {
-		*errors = append(*errors, err)
-	}
-}
-
-func checkTables(connection *dynamodb.DynamoDB) error {
-	response, err := connection.ListTables(&dynamodb.ListTablesInput{})
-	if response != nil {
-		if len(response.TableNames) == 0 {
-			log.Print("Tables not found: ", nil)
-		}
-		for _, tableName := range response.TableNames {
-			log.Print("Table found: ", *tableName)
-		}
-	}
-	return err
-}
-
-func GetConnection() *dynamodb.DynamoDB {
-	endpoint := os.Getenv("DYNAMO_ENDPOINT")
-
+func getConnection(endpoint, region string) *dynamodb.DynamoDB {
 	sess, err := session.NewSession(&aws.Config{
-		Region:   aws.String("us-west-2"),
+		Region:   aws.String(region),
 		Endpoint: aws.String(endpoint),
 	})
 	if err != nil {

@@ -21,7 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	VehicleData_GetVehicleDataByRegistration_FullMethodName  = "/vehicledata.VehicleData/GetVehicleDataByRegistration"
 	VehicleData_GetVehicleDataByChassisEngine_FullMethodName = "/vehicledata.VehicleData/GetVehicleDataByChassisEngine"
-	VehicleData_GetDriverDataByLicenseNumber_FullMethodName  = "/vehicledata.VehicleData/GetDriverDataByLicenseNumber"
+	VehicleData_GetOwnerDataByID_FullMethodName              = "/vehicledata.VehicleData/GetOwnerDataByID"
 )
 
 // VehicleDataClient is the client API for VehicleData service.
@@ -30,7 +30,7 @@ const (
 type VehicleDataClient interface {
 	GetVehicleDataByRegistration(ctx context.Context, in *RegistrationRequest, opts ...grpc.CallOption) (*VehicleInfo, error)
 	GetVehicleDataByChassisEngine(ctx context.Context, in *ChassisEngineNumberRequest, opts ...grpc.CallOption) (*VehicleInfo, error)
-	GetDriverDataByLicenseNumber(ctx context.Context, in *LicenseRequest, opts ...grpc.CallOption) (*DriverInfo, error)
+	GetOwnerDataByID(ctx context.Context, in *OwnerRequest, opts ...grpc.CallOption) (*OwnerInfo, error)
 }
 
 type vehicleDataClient struct {
@@ -59,9 +59,9 @@ func (c *vehicleDataClient) GetVehicleDataByChassisEngine(ctx context.Context, i
 	return out, nil
 }
 
-func (c *vehicleDataClient) GetDriverDataByLicenseNumber(ctx context.Context, in *LicenseRequest, opts ...grpc.CallOption) (*DriverInfo, error) {
-	out := new(DriverInfo)
-	err := c.cc.Invoke(ctx, VehicleData_GetDriverDataByLicenseNumber_FullMethodName, in, out, opts...)
+func (c *vehicleDataClient) GetOwnerDataByID(ctx context.Context, in *OwnerRequest, opts ...grpc.CallOption) (*OwnerInfo, error) {
+	out := new(OwnerInfo)
+	err := c.cc.Invoke(ctx, VehicleData_GetOwnerDataByID_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (c *vehicleDataClient) GetDriverDataByLicenseNumber(ctx context.Context, in
 type VehicleDataServer interface {
 	GetVehicleDataByRegistration(context.Context, *RegistrationRequest) (*VehicleInfo, error)
 	GetVehicleDataByChassisEngine(context.Context, *ChassisEngineNumberRequest) (*VehicleInfo, error)
-	GetDriverDataByLicenseNumber(context.Context, *LicenseRequest) (*DriverInfo, error)
+	GetOwnerDataByID(context.Context, *OwnerRequest) (*OwnerInfo, error)
 	mustEmbedUnimplementedVehicleDataServer()
 }
 
@@ -88,8 +88,8 @@ func (UnimplementedVehicleDataServer) GetVehicleDataByRegistration(context.Conte
 func (UnimplementedVehicleDataServer) GetVehicleDataByChassisEngine(context.Context, *ChassisEngineNumberRequest) (*VehicleInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVehicleDataByChassisEngine not implemented")
 }
-func (UnimplementedVehicleDataServer) GetDriverDataByLicenseNumber(context.Context, *LicenseRequest) (*DriverInfo, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetDriverDataByLicenseNumber not implemented")
+func (UnimplementedVehicleDataServer) GetOwnerDataByID(context.Context, *OwnerRequest) (*OwnerInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOwnerDataByID not implemented")
 }
 func (UnimplementedVehicleDataServer) mustEmbedUnimplementedVehicleDataServer() {}
 
@@ -140,20 +140,20 @@ func _VehicleData_GetVehicleDataByChassisEngine_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _VehicleData_GetDriverDataByLicenseNumber_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LicenseRequest)
+func _VehicleData_GetOwnerDataByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OwnerRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(VehicleDataServer).GetDriverDataByLicenseNumber(ctx, in)
+		return srv.(VehicleDataServer).GetOwnerDataByID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: VehicleData_GetDriverDataByLicenseNumber_FullMethodName,
+		FullMethod: VehicleData_GetOwnerDataByID_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(VehicleDataServer).GetDriverDataByLicenseNumber(ctx, req.(*LicenseRequest))
+		return srv.(VehicleDataServer).GetOwnerDataByID(ctx, req.(*OwnerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -174,8 +174,8 @@ var VehicleData_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _VehicleData_GetVehicleDataByChassisEngine_Handler,
 		},
 		{
-			MethodName: "GetDriverDataByLicenseNumber",
-			Handler:    _VehicleData_GetDriverDataByLicenseNumber_Handler,
+			MethodName: "GetOwnerDataByID",
+			Handler:    _VehicleData_GetOwnerDataByID_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

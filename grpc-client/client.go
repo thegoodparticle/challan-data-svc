@@ -54,7 +54,7 @@ func (c *GRPCClient) GetVehicleDetailsByRegistrationNumber(registrationNumber st
 	return vehicleInfo
 }
 
-func (c *GRPCClient) GetOwnerDetailsByLicenseNumber(licenseNumber string) *pb.DriverInfo {
+func (c *GRPCClient) GetOwnerDetailsByID(ownerID string) *pb.OwnerInfo {
 	conn := c.initClientConnection()
 	if conn == nil {
 		return nil
@@ -67,9 +67,9 @@ func (c *GRPCClient) GetOwnerDetailsByLicenseNumber(licenseNumber string) *pb.Dr
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	driverInfo, err := client.GetDriverDataByLicenseNumber(ctx, &pb.LicenseRequest{LicenseNumber: licenseNumber})
+	driverInfo, err := client.GetOwnerDataByID(ctx, &pb.OwnerRequest{OwnerID: ownerID})
 	if err != nil {
-		log.Printf("client.GetOwnerDetailsByLicenseNumber failed: %v", err)
+		log.Printf("client.GetOwnerDetailsByID failed: %v", err)
 		return nil
 	}
 
