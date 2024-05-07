@@ -66,31 +66,25 @@ func (h *Handler) GetChallanResponseForRegistrationID(w http.ResponseWriter, r *
 	HttpStatus.StatusOK(w, r, response)
 }
 
-func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
-	vehicleViolationsBody, err := h.getBodyAndValidate(r)
+func (h *Handler) PostEvent(eventBody []byte) {
+	vehicleViolationsBody, err := h.getBodyAndValidate(eventBody)
 	if err != nil {
-		HttpStatus.StatusBadRequest(w, r, err)
+		log.Printf("invalid request body received from kafka. Err: %v", err)
 		return
 	}
 
 	ID, err := h.controller.Create(vehicleViolationsBody)
 	if err != nil {
-		HttpStatus.StatusInternalServerError(w, r, err)
+		log.Printf("could not create challan entry")
 		return
 	}
 
-	HttpStatus.StatusOK(w, r, map[string]interface{}{"registration_id": ID})
+	log.Printf("Created entry successfully for %s", ID)
 }
 
-func (h *Handler) getBodyAndValidate(r *http.Request) (*models.ChallanInfo, error) {
-	vehicleViolationsBody := &models.ChallanInfo{}
-	body, err := models.ConvertIoReaderToStruct(r.Body, vehicleViolationsBody)
-	if err != nil {
-		return &models.ChallanInfo{}, errors.New("body is required")
-	}
-
-	vehicleBodyParsed, err := models.InterfaceToModel(body)
-	if err != nil {
+func (h *Handler) getBodyAndValidate(message []byte) (*models.ChallanInfo, error) {
+	vehicleBodyParsed, err := models.ConvertToModel(message)
+	if err != nil || vehicleBodyParsed == nil {
 		return &models.ChallanInfo{}, errors.New("error on convert body to model")
 	}
 

@@ -33,13 +33,8 @@ type ChallanResponse struct {
 	ChallanInfo            []ChallanInfo `json:"Challans"`
 }
 
-func InterfaceToModel(data interface{}) (instance *ChallanInfo, err error) {
-	bytes, err := json.Marshal(data)
-	if err != nil {
-		return instance, err
-	}
-
-	return instance, json.Unmarshal(bytes, &instance)
+func ConvertToModel(data []byte) (instance *ChallanInfo, err error) {
+	return instance, json.Unmarshal(data, &instance)
 }
 
 func (p *ChallanInfo) PrimaryKey() string {
